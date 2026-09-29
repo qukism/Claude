@@ -179,7 +179,7 @@
         <li>Door and doorway height <b>80</b></li>
         <li>Couch height / seat height <b>36 / 18</b></li>
         <li>Ottoman height (matches seat) <b>18</b></li>
-        <li>Ottoman position <b>placeholder</b></li>
+        <li>Ottoman position <b>chaise, hallway end</b></li>
         <li>Radiator height <b>26</b></li>
         <li>Recessed cabinet height <b>84</b></li>
         <li>Bike table wheel / leg spacing <b>~12 dia / 46</b></li>
@@ -517,7 +517,7 @@
   rug.add(rugTop);
 
   // ---------- Ottoman (owned, placeholder position) ----------
-  const OT = { x0: 64, x1: 92, y0: 97, y1: 153 };
+  const OT = { x0: 45, x1: 73, y0: 92.5, y1: 148.5 };
   const ottoman = group({ key: 'ottoman' });
   box(OT.x0 + 0.5, OT.x1 - 0.5, OT.y0 + 0.5, OT.y1 - 0.5, 0.4, 14, M.fabric, ottoman);
   box(OT.x0, OT.x1, OT.y0, OT.y1, 14, 18, M.fabric, ottoman);
@@ -733,7 +733,7 @@
   }
   dimLine([0, L + 14], [W, L + 14], 0.2, '137', dims);
   dimLine([W + 14, 0], [W + 14, L], 0.2, '155', dims);
-  dimLine([45, 92], [122, 92], 1.2, '77 couch → stand', dims);
+  dimLine([45, 75], [122, 75], 1.2, '77 couch → stand', dims);
   dimLine([126, 41.5], [126, 55], 16, '13.5', dims);
 
   // ---------- Labels ----------
@@ -748,7 +748,7 @@
     { text: 'Kitchen door', pos: v(19.25, 0, 86), obj: kitchenDoor },
     { text: 'Hallway doorway', pos: v(89, L, 88), obj: hallDoor },
     { text: 'Rug 8×10', pos: v(104, 138, 1), obj: rug },
-    { text: 'Ottoman · spot TBD', pos: v(78, 142, 22), obj: ottoman },
+    { text: 'Ottoman · chaise', pos: v(59, 128, 22), obj: ottoman },
     { text: 'Router', pos: v(32, 152, 9), obj: router },
     { text: 'Arc lamp · idea', cls: 'cand', pos: v(15, 136, 87), obj: lamp },
     { text: 'Table · candidate', cls: 'cand', pos: new THREE.Vector3(), obj: tableGroup, dynamic: true },
@@ -857,9 +857,9 @@
     trim: { name: 'Trim', tag: 'Fixed', rows: [['Span', 'y 114.5–118.7 (4.2)']], note: 'Fine to cover with the stand.' },
     porch: { name: 'Porch doors', tag: 'Fixed · kept closed', rows: [['Opening', 'x 63–137 (74)'], ['Height', '80 (assumed)']], note: 'The porch is also reachable through the kitchen, so this wall run is usable.' },
     kitchen: { name: 'Kitchen door', tag: 'Keep clear', rows: [['Opening', 'x 3–35.5 (32.5)'], ['Height', '80 (assumed)']], note: 'Active traffic. The green floor zone marks the pocket in front of it.' },
-    hall: { name: 'Hallway doorway', tag: 'Only exit', rows: [['Opening', 'x 56–122 (66)'], ['Height', '80 (assumed)']], note: 'The ottoman may partly block it.' },
+    hall: { name: 'Hallway doorway', tag: 'Only exit', rows: [['Opening', 'x 56–122 (66)'], ['Height', '80 (assumed)']], note: 'Clear now that the ottoman sits against the couch.' },
     rug: { name: 'Rug, 8 × 10 ft', tag: 'Bought', rows: [['Product', 'LUXE WEAVERS Daphnes 2735, Navy · $126'], ['Size', '96 × 120'], ['Position', `x ${RUG.x0}–${RUG.x1}, y ${RUG.y0}–${RUG.y1}`], ['Under couch', `${45 - RUG.x0} (front legs on it)`]], note: 'Long side runs along the couch, centred on it (y 92), and stops at the TV stand. It is 12 in narrower than the stand-to-couch-back span, so it can\'t also reach under the stand. Use a rug pad on the hardwood.' },
-    ottoman: { name: 'Storage ottoman', tag: 'Owned · spot TBD', rows: [['Footprint', '28 W × 56 L (approx.)'], ['Height', '18 (matches seat, assumed)'], ['Shown at', `x ${OT.x0}–${OT.x1}, y ${OT.y0}–${OT.y1}`]], note: 'Same white Sunbrella and navy piping as the couch. Long side runs parallel to the couch. Placeholder spot, partly in front of the hallway doorway.' },
+    ottoman: { name: 'Storage ottoman', tag: 'Owned · placed', rows: [['Footprint', '28 W × 56 L (approx.)'], ['Height', '18 (matches seat, assumed)'], ['Shown at', `x ${OT.x0}–${OT.x1}, y ${OT.y0}–${OT.y1}`], ['To TV stand', `${122 - OT.x1}`]], note: 'Same white Sunbrella and navy piping as the couch. Pushed against the couch front at the hallway end, flush with the arm, so it works as a chaise: about 64 in of legroom from the couch back.' },
     router: { name: 'Router', tag: 'Owned', rows: [['Gap', 'y 148.5–155 (6.5) past the couch end'], ['Shown at', 'x 28–36, y 150–154']], note: 'Moved forward in the gap to leave the back corner for a lamp.' },
     lamp: { name: 'Arc floor lamp', tag: 'Idea · not bought', cand: true, rows: [['Base', '6 dia, back corner (x 5, y 151.75)'], ['Arc height', '~78 at the top (assumed)'], ['Reach', '~40, shade over the seat at x 26, y 118'], ['Shade', '16 dia dome, bottom at 58 (assumed)'], ['Clearance', '~8 above a seated head (~50)']], note: 'The base has to fit the 6.5 in gap, so it must be 6 in or smaller. A small base plus a 40 in reach can tip: look for a heavy marble or iron base, or one that anchors under the couch.' },
     floor: { name: 'Room', tag: 'Measured', rows: [['Width', '137 (x)'], ['Length', '155 (y)'], ['Area', '147.5 sq ft'], ['Ceiling', '96 (assumed)']], note: 'Hardwood floor. Origin is the top-left corner by the kitchen door.' },
