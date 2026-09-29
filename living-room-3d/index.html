@@ -172,7 +172,7 @@
         <li>Radiator height <b>26</b></li>
         <li>Recessed cabinet height <b>84</b></li>
         <li>Table size (top of spec range) <b>72 × 30 × 36</b></li>
-        <li>Floor lamp height / shade <b>60 / 14</b></li>
+        <li>Arc lamp height / reach / shade <b>78 / 40 / 16</b></li>
       </ul>
       <p class="note">All units are inches. Origin is the top-left floor corner (kitchen side). Coffee table and beer fridge are left out.</p>
     </section>
@@ -408,15 +408,22 @@
   box(29, 29.6, 152.6, 153.2, 1.6, 7, M.router, router);
   box(34.4, 35, 152.6, 153.2, 1.6, 7, M.router, router);
 
-  const LAMP = { x: 7, y: 151.75 };
+  // Arc lamp: small weighted base in the back corner, arm arcs up and over the couch.
+  const LAMP = { x: 5, y: 151.75, shadeX: 26, shadeY: 118, shadeBottom: 58 };
   const lamp = group({ key: 'lamp' });
-  cyl(LAMP.x, LAMP.y, 0, 1, 3, M.metal, lamp, 24);
-  cyl(LAMP.x, LAMP.y, 1, 56, 0.45, M.metal, lamp, 10);
-  const shadeMesh = new THREE.Mesh(new THREE.CylinderGeometry(6, 7, 10, 32, 1, true), M.shade);
-  shadeMesh.position.copy(v(LAMP.x, LAMP.y, 59));
+  cyl(LAMP.x, LAMP.y, 0, 2.5, 3, M.chrome, lamp, 28);
+  const arcPts = [[5, 151.75, 2.5], [5, 151.75, 40], [6.5, 149.5, 62], [11, 141, 75], [18, 131, 79], [23.5, 123, 76], [26, 118, 70], [26, 118, 67]]
+    .map(([x, y, z]) => v(x, y, z));
+  const arm = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(arcPts), 80, 0.55, 10, false), M.chrome);
+  arm.castShadow = true;
+  lamp.add(arm);
+  const shadeMesh = new THREE.Mesh(new THREE.SphereGeometry(8, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), M.shade);
+  shadeMesh.scale.set(1, 1.05, 1);
+  shadeMesh.position.copy(v(LAMP.shadeX, LAMP.shadeY, LAMP.shadeBottom));
+  shadeMesh.castShadow = true;
   lamp.add(shadeMesh);
-  const bulb = new THREE.PointLight(0xffd6a0, 0.45, 220, 1.6);
-  bulb.position.copy(v(LAMP.x, LAMP.y, 58));
+  const bulb = new THREE.PointLight(0xffd6a0, 0.5, 200, 1.6);
+  bulb.position.copy(v(LAMP.shadeX, LAMP.shadeY, LAMP.shadeBottom + 2));
   lamp.add(bulb);
 
   // ---------- TV stand (candidate) + TV ----------
@@ -625,7 +632,7 @@
     { text: 'Rug 9×12 · candidate', cls: 'cand', pos: v(86, 118, 1), obj: rug },
     { text: 'Ottoman · spot TBD', pos: v(78, 142, 22), obj: ottoman },
     { text: 'Router', pos: v(32, 152, 9), obj: router },
-    { text: 'Lamp · idea', cls: 'cand', pos: v(LAMP.x, LAMP.y, 70), obj: lamp },
+    { text: 'Arc lamp · idea', cls: 'cand', pos: v(15, 136, 87), obj: lamp },
     { text: 'Table · candidate', cls: 'cand', pos: new THREE.Vector3(), obj: tableGroup, dynamic: true },
   ];
   function makeEl(l) {
@@ -712,7 +719,7 @@
     rug: { name: 'Rug, 9 × 12 ft', tag: 'Candidate', cand: true, rows: [['Size', '108 × 144'], ['Position', 'x 6–114, y 5–149'], ['Gap to TV stand', '8']], note: 'Dark and patterned. The couch\'s front legs sit on it. Use a rug pad on the hardwood.' },
     ottoman: { name: 'Storage ottoman', tag: 'Owned · spot TBD', rows: [['Footprint', '28 W × 56 L (approx.)'], ['Height', '18 (matches seat, assumed)'], ['Shown at', `x ${OT.x0}–${OT.x1}, y ${OT.y0}–${OT.y1}`]], note: 'Same white Sunbrella and navy piping as the couch. Long side runs parallel to the couch. Placeholder spot, partly in front of the hallway doorway.' },
     router: { name: 'Router', tag: 'Owned', rows: [['Gap', 'y 148.5–155 (6.5) past the couch end'], ['Shown at', 'x 28–36, y 150–154']], note: 'Moved forward in the gap to leave the back corner for a lamp.' },
-    lamp: { name: 'Floor lamp', tag: 'Idea · not bought', cand: true, rows: [['Spot', 'back corner, behind the couch end'], ['Base', '6 dia max'], ['Height', '60 (assumed)'], ['Shade', '14 dia (assumed)']], note: 'The gap is only 6.5 wide, so the base must be 6" or less. The shade sits well above the couch (36) and can overhang the arm.' },
+    lamp: { name: 'Arc floor lamp', tag: 'Idea · not bought', cand: true, rows: [['Base', '6 dia, back corner (x 5, y 151.75)'], ['Arc height', '~78 at the top (assumed)'], ['Reach', '~40, shade over the seat at x 26, y 118'], ['Shade', '16 dia dome, bottom at 58 (assumed)'], ['Clearance', '~8 above a seated head (~50)']], note: 'The base has to fit the 6.5 in gap, so it must be 6 in or smaller. A small base plus a 40 in reach can tip: look for a heavy marble or iron base, or one that anchors under the couch.' },
     floor: { name: 'Room', tag: 'Measured', rows: [['Width', '137 (x)'], ['Length', '155 (y)'], ['Area', '147.5 sq ft'], ['Ceiling', '96 (assumed)']], note: 'Hardwood floor. Origin is the top-left corner by the kitchen door.' },
     'stool-swivel': { name: 'Black swivel stool', tag: 'Owned · 2 of these', rows: [['Seat height', '24 (adjustable)'], ['Back', 'yes'], ['Seat diameter', '16 (assumed)']], note: 'Gas-lift swivel. 24 in leaves 12 in under a 36 in tabletop, the usual counter-stool gap.' },
     'stool-grey': { name: 'Grey stool with back', tag: 'Owned · 2 of these', rows: [['Seat height', '24'], ['Back', 'yes'], ['Seat', '15 × 15 (assumed)']], note: 'Fixed height, right for a 36 in counter table.' },
