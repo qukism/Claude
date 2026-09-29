@@ -471,40 +471,48 @@
   screen.position.copy(v(128.45, 90, 33));
   tv.add(screen);
 
-  // ---------- Rug (candidate, 108 × 144) ----------
+  // ---------- Rug (bought, 8 × 10 ft) ----------
   const rug = group({ key: 'rug' });
-  const rugTex = canvasTex(600, 800, (g, w, h) => {
-    const s = w / 108;
-    g.fillStyle = '#1e2838'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#6e2f25'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#1e2838'; g.fillRect(9 * s, 9 * s, w - 18 * s, h - 18 * s);
-    g.strokeStyle = '#c9b48a'; g.lineWidth = 0.6 * s;
-    g.strokeRect(2.5 * s, 2.5 * s, w - 5 * s, h - 5 * s);
-    g.strokeRect(9 * s, 9 * s, w - 18 * s, h - 18 * s);
-    g.fillStyle = '#b5894c';
-    for (let x = 4 * s; x < w - 4 * s; x += 6 * s) { g.beginPath(); g.moveTo(x, 5.75 * s - 1.5 * s); g.lineTo(x + 1.5 * s, 5.75 * s); g.lineTo(x, 5.75 * s + 1.5 * s); g.lineTo(x - 1.5 * s, 5.75 * s); g.fill();
-      g.beginPath(); g.moveTo(x, h - 5.75 * s - 1.5 * s); g.lineTo(x + 1.5 * s, h - 5.75 * s); g.lineTo(x, h - 5.75 * s + 1.5 * s); g.lineTo(x - 1.5 * s, h - 5.75 * s); g.fill(); }
-    for (let y = 4 * s; y < h - 4 * s; y += 6 * s) { [5.75 * s, w - 5.75 * s].forEach((x) => { g.beginPath(); g.moveTo(x, y - 1.5 * s); g.lineTo(x + 1.5 * s, y); g.lineTo(x, y + 1.5 * s); g.lineTo(x - 1.5 * s, y); g.fill(); }); }
-    const cell = 15 * s;
-    g.save(); g.beginPath(); g.rect(10 * s, 10 * s, w - 20 * s, h - 20 * s); g.clip();
-    for (let r = -1; r * cell < h + cell; r++) {
-      for (let c = -1; c * cell < w + cell; c++) {
-        const cx = 10 * s + c * cell + (r % 2 ? cell / 2 : 0), cy = 10 * s + r * cell * 0.9;
-        g.fillStyle = (r + c) % 3 === 0 ? '#3b4a63' : '#2a3548';
-        g.beginPath(); g.moveTo(cx, cy - cell * 0.45); g.lineTo(cx + cell * 0.42, cy); g.lineTo(cx, cy + cell * 0.45); g.lineTo(cx - cell * 0.42, cy); g.closePath(); g.fill();
-        g.strokeStyle = '#8c4a34'; g.lineWidth = 0.5 * s; g.stroke();
-        g.fillStyle = '#b5894c'; g.beginPath(); g.arc(cx, cy, 1.1 * s, 0, Math.PI * 2); g.fill();
+  // LUXE WEAVERS Daphnes, Navy, 8 × 10 ft: speckled navy field, two side chains of small diamonds, a zigzag of large diamonds down the middle.
+  const RUG = { x0: 26, x1: 122, y0: 32, y1: 152 };
+  const rugTex = canvasTex(640, 800, (g, w, h) => {
+    const s = w / 96;
+    let seed = 11;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    g.fillStyle = '#1b2649'; g.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += 2) {
+      for (let x = 0; x < w;) {
+        const len = 2 + rnd() * 14;
+        const r = rnd();
+        if (r < 0.14) { g.fillStyle = `rgba(215,225,245,${0.25 + rnd() * 0.35})`; g.fillRect(x, y, len, 1.3); }
+        else if (r < 0.3) { g.fillStyle = 'rgba(10,16,38,0.55)'; g.fillRect(x, y, len, 1.3); }
+        x += len + rnd() * 10;
       }
     }
-    g.restore();
-    g.globalAlpha = 0.07;
-    for (let i = 0; i < 9000; i++) { g.fillStyle = Math.random() > 0.5 ? '#fff' : '#000'; g.fillRect(Math.random() * w, Math.random() * h, 1.2, 1.2); }
-    g.globalAlpha = 1;
+    g.strokeStyle = '#141c38'; g.lineWidth = 1.6 * s; g.strokeRect(0.8 * s, 0.8 * s, w - 1.6 * s, h - 1.6 * s);
+    const line = (pts, lw) => {
+      g.strokeStyle = 'rgba(236,240,248,0.92)'; g.lineWidth = lw * s; g.lineJoin = 'round';
+      g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x * s, y * s) : g.moveTo(x * s, y * s))); g.stroke();
+    };
+    // Side chains of small crossed diamonds.
+    [17, 79].forEach((cx) => {
+      for (let y = 4; y + 3.2 <= 116; y += 3.2) {
+        line([[cx, y], [cx + 1.8, y + 1.6], [cx, y + 3.2], [cx - 1.8, y + 1.6], [cx, y]], 0.45);
+        line([[cx - 1.8, y + 1.6], [cx - 3, y + 1.6]], 0.4);
+        line([[cx + 1.8, y + 1.6], [cx + 3, y + 1.6]], 0.4);
+      }
+    });
+    // Centre zigzag of large diamonds, each shifted off-axis like the product photo.
+    const dH = 30, dW = 36;
+    for (let i = 0; i < 4; i++) {
+      const cy = 15 + i * dH, cx = 48 + (i % 2 ? 8 : -8);
+      line([[cx, cy - dH / 2], [cx + dW / 2, cy], [cx, cy + dH / 2], [cx - dW / 2, cy], [cx, cy - dH / 2]], 0.9);
+    }
   });
-  box(6, 114, 5, 149, 0, 0.35, M.rugEdge, rug, false);
-  const rugTop = new THREE.Mesh(new THREE.PlaneGeometry(108, 144), std(0xffffff, { map: rugTex, roughness: 1 }));
+  box(RUG.x0, RUG.x1, RUG.y0, RUG.y1, 0, 0.35, M.rugEdge, rug, false);
+  const rugTop = new THREE.Mesh(new THREE.PlaneGeometry(RUG.x1 - RUG.x0, RUG.y1 - RUG.y0), std(0xffffff, { map: rugTex, roughness: 1 }));
   rugTop.rotation.x = -Math.PI / 2;
-  rugTop.position.copy(v(60, 77, 0.36));
+  rugTop.position.copy(v((RUG.x0 + RUG.x1) / 2, (RUG.y0 + RUG.y1) / 2, 0.36));
   rugTop.receiveShadow = true;
   rug.add(rugTop);
 
@@ -727,7 +735,6 @@
   dimLine([W + 14, 0], [W + 14, L], 0.2, '155', dims);
   dimLine([45, 92], [122, 92], 1.2, '77 couch → stand', dims);
   dimLine([126, 41.5], [126, 55], 16, '13.5', dims);
-  dimLine([114, 66], [122, 66], 1.2, '8', dims);
 
   // ---------- Labels ----------
   const labelsEl = document.getElementById('labels');
@@ -740,7 +747,7 @@
     { text: 'Porch doors (closed)', pos: v(100, 0, 86), obj: porch },
     { text: 'Kitchen door', pos: v(19.25, 0, 86), obj: kitchenDoor },
     { text: 'Hallway doorway', pos: v(89, L, 88), obj: hallDoor },
-    { text: 'Rug 9×12 · candidate', cls: 'cand', pos: v(86, 118, 1), obj: rug },
+    { text: 'Rug 8×10', pos: v(104, 138, 1), obj: rug },
     { text: 'Ottoman · spot TBD', pos: v(78, 142, 22), obj: ottoman },
     { text: 'Router', pos: v(32, 152, 9), obj: router },
     { text: 'Arc lamp · idea', cls: 'cand', pos: v(15, 136, 87), obj: lamp },
@@ -851,7 +858,7 @@
     porch: { name: 'Porch doors', tag: 'Fixed · kept closed', rows: [['Opening', 'x 63–137 (74)'], ['Height', '80 (assumed)']], note: 'The porch is also reachable through the kitchen, so this wall run is usable.' },
     kitchen: { name: 'Kitchen door', tag: 'Keep clear', rows: [['Opening', 'x 3–35.5 (32.5)'], ['Height', '80 (assumed)']], note: 'Active traffic. The green floor zone marks the pocket in front of it.' },
     hall: { name: 'Hallway doorway', tag: 'Only exit', rows: [['Opening', 'x 56–122 (66)'], ['Height', '80 (assumed)']], note: 'The ottoman may partly block it.' },
-    rug: { name: 'Rug, 9 × 12 ft', tag: 'Candidate', cand: true, rows: [['Size', '108 × 144'], ['Position', 'x 6–114, y 5–149'], ['Gap to TV stand', '8']], note: 'Dark and patterned. The couch\'s front legs sit on it. Use a rug pad on the hardwood.' },
+    rug: { name: 'Rug, 8 × 10 ft', tag: 'Bought', rows: [['Product', 'LUXE WEAVERS Daphnes 2735, Navy · $126'], ['Size', '96 × 120'], ['Position', `x ${RUG.x0}–${RUG.x1}, y ${RUG.y0}–${RUG.y1}`], ['Under couch', `${45 - RUG.x0} (front legs on it)`]], note: 'Long side runs along the couch, centred on it (y 92), and stops at the TV stand. It is 12 in narrower than the stand-to-couch-back span, so it can\'t also reach under the stand. Use a rug pad on the hardwood.' },
     ottoman: { name: 'Storage ottoman', tag: 'Owned · spot TBD', rows: [['Footprint', '28 W × 56 L (approx.)'], ['Height', '18 (matches seat, assumed)'], ['Shown at', `x ${OT.x0}–${OT.x1}, y ${OT.y0}–${OT.y1}`]], note: 'Same white Sunbrella and navy piping as the couch. Long side runs parallel to the couch. Placeholder spot, partly in front of the hallway doorway.' },
     router: { name: 'Router', tag: 'Owned', rows: [['Gap', 'y 148.5–155 (6.5) past the couch end'], ['Shown at', 'x 28–36, y 150–154']], note: 'Moved forward in the gap to leave the back corner for a lamp.' },
     lamp: { name: 'Arc floor lamp', tag: 'Idea · not bought', cand: true, rows: [['Base', '6 dia, back corner (x 5, y 151.75)'], ['Arc height', '~78 at the top (assumed)'], ['Reach', '~40, shade over the seat at x 26, y 118'], ['Shade', '16 dia dome, bottom at 58 (assumed)'], ['Clearance', '~8 above a seated head (~50)']], note: 'The base has to fit the 6.5 in gap, so it must be 6 in or smaller. A small base plus a 40 in reach can tip: look for a heavy marble or iron base, or one that anchors under the couch.' },
