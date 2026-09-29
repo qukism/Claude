@@ -67,7 +67,10 @@
   .seg button:last-child { border-radius: 0 4px 4px 0; }
   .field { display: flex; flex-direction: column; gap: 6px; }
   .field + .field { margin-top: 12px; }
-  .field > span { font-size: 13px; color: var(--muted); }
+  .field > span, .slider { font-size: 13px; color: var(--muted); }
+  .slider { display: flex; justify-content: space-between; gap: 12px; }
+  .slider output { font-family: var(--font-num); font-size: 12px; color: var(--fg); font-variant-numeric: tabular-nums; }
+  .field input[type="range"] { width: 100%; margin: 0; accent-color: var(--accent); }
   .stats { margin: 14px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; }
   .stats dt { color: var(--muted); }
   .stats dd { margin: 0; font-family: var(--font-num); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
@@ -124,20 +127,28 @@
     <section>
       <h2>Counter-height table</h2>
       <div class="field">
-        <span>Layout</span>
-        <div class="seg" role="group" aria-label="Table layout" id="tableOpt">
+        <span>Table</span>
+        <div class="seg" role="group" aria-label="Table" id="tableType">
           <button type="button" data-v="none" aria-pressed="false">None</button>
-          <button type="button" data-v="A" aria-pressed="true">A · against wall</button>
-          <button type="button" data-v="B" aria-pressed="false">B · pulled out</button>
+          <button type="button" data-v="rect" aria-pressed="true">Rectangle</button>
+          <button type="button" data-v="square" aria-pressed="false">Square</button>
+          <button type="button" data-v="bike" aria-pressed="false">Bike</button>
         </div>
       </div>
       <div class="field">
-        <span>Table length (right end at the radiator line, x = 128)</span>
-        <div class="seg" role="group" aria-label="Table length" id="tableLen">
-          <button type="button" data-v="60" aria-pressed="false">60 in</button>
-          <button type="button" data-v="66" aria-pressed="false">66 in</button>
-          <button type="button" data-v="72" aria-pressed="true">72 in</button>
+        <span>Position</span>
+        <div class="seg" role="group" aria-label="Table position" id="tablePos">
+          <button type="button" data-v="wall" aria-pressed="true">Against wall</button>
+          <button type="button" data-v="pulled" aria-pressed="false">Pulled out 24"</button>
         </div>
+      </div>
+      <div class="field">
+        <label class="slider" for="tableX"><span>Slide left ↔ right</span><output id="tableXOut"></output></label>
+        <input type="range" id="tableX" min="0" max="74" step="0.5" value="65">
+      </div>
+      <div class="field">
+        <label class="slider" for="tableY"><span>Distance from porch-door wall</span><output id="tableYOut"></output></label>
+        <input type="range" id="tableY" min="0" max="120" step="0.5" value="0">
       </div>
       <dl class="stats" id="tableStats"></dl>
       <p class="note" id="tableNote"></p>
@@ -171,7 +182,8 @@
         <li>Ottoman position <b>placeholder</b></li>
         <li>Radiator height <b>26</b></li>
         <li>Recessed cabinet height <b>84</b></li>
-        <li>Table size (top of spec range) <b>72 × 30 × 36</b></li>
+        <li>Bike table wheel / leg spacing <b>~12 dia / 46</b></li>
+        <li>Square table leg taper <b>from photo</b></li>
         <li>Arc lamp height / reach / shade <b>78 / 40 / 16</b></li>
       </ul>
       <p class="note">All units are inches. Origin is the top-left floor corner (kitchen side). Coffee table and beer fridge are left out.</p>
@@ -186,7 +198,7 @@
   // ---------- Room constants (inches, spec coordinates) ----------
   // Spec: x → right (0–137), y → toward hallway (0–155), z → up.
   const W = 137, L = 155, H = 96, DOOR_H = 80, WALL_T = 4;
-  const TABLE_RIGHT = 128, TABLE_D = 30, TABLE_H = 36, STOOL_R = 8, STOOL_SEAT = 24;
+  const RADIATOR_LINE = 128, STOOL_R = 8, STOOL_SEAT = 24;
 
   const v = (x, y, z) => new THREE.Vector3(x - W / 2, z, y - L / 2);
   const toSpec = (p) => ({ x: p.x + W / 2, y: p.z + L / 2, z: p.y });
@@ -229,6 +241,12 @@
     navy: std(0x1f2f5c, { roughness: 0.9 }),
     wood: std(0x4a3222, { roughness: 0.7 }),
     tableWood: std(0xb88a5a, { roughness: 0.65 }),
+    pine: std(0xbd8141, { roughness: 0.7 }),
+    squareTop: std(0x7a624b, { roughness: 0.6 }),
+    bikeTop: std(0x4f3727, { roughness: 0.6 }),
+    groove: std(0x2b1d14, { roughness: 0.9 }),
+    blackWood: std(0x18191a, { roughness: 0.7 }),
+    iron: std(0x1d1e20, { roughness: 0.45, metalness: 0.6 }),
     standWood: std(0x6e4f39, { roughness: 0.7 }),
     black: std(0x121314, { roughness: 0.45 }),
     metal: std(0x2a2c2e, { roughness: 0.5, metalness: 0.5 }),
@@ -522,73 +540,166 @@
   zone(128, W, 0, 41.5, 0xb3372b, zones, 0.8);
   zone(0, 45, 148.5, L, 0x2f7d4f, zones);
 
-  // ---------- Table options ----------
-  const tableGroup = group({ key: 'table' });
-  const stoolZones = new THREE.Group();
-  zones.add(stoolZones);
-  // Owned stools, all 24" seats. `back` is +1 when the backrest sits on the +y side.
-  function stool(x, y, type, back, parent) {
+  // ---------- Table candidates ----------
+  // Every table and stool is built around the room centre C, then moved into place, so it can be rotated.
+  const C = { x: W / 2, y: L / 2 };
+  const lb = (g, x0, x1, y0, y1, z0, z1, mat, sh = true) => box(C.x + x0, C.x + x1, C.y + y0, C.y + y1, z0, z1, mat, g, sh);
+  const lv = (x, y, z) => v(C.x + x, C.y + y, z);
+  const UP = new THREE.Vector3(0, 1, 0);
+  function rod(g, a, b, r, mat, square) {
+    const d = b.clone().sub(a), len = d.length();
+    const geo = square ? new THREE.BoxGeometry(r * 2, len, r * 2) : new THREE.CylinderGeometry(r, r, len, 10);
+    const m = new THREE.Mesh(geo, mat);
+    m.position.copy(a).add(b).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(UP, d.normalize());
+    m.castShadow = true; m.receiveShadow = true;
+    g.add(m);
+    return m;
+  }
+  function buildRect(g) {
+    const Lh = 62.99 / 2, Dh = 19.69 / 2, H = 37.4, t = 1.77, out = 53.54 / 2, leg = 3.15, ld = 17.52 / 2;
+    lb(g, -Lh, Lh, -Dh, Dh, H - t, H, M.pine);
+    lb(g, -0.08, 0.08, -Dh, Dh, H - 0.02, H + 0.02, M.groove, false);
+    [-1, 1].forEach((s) => lb(g, s > 0 ? out - leg : -out, s > 0 ? out : -out + leg, -ld, ld, 0, H - t, M.pine));
+    [-1, 1].forEach((s) => lb(g, -out + leg, out - leg, s > 0 ? ld - 0.8 : -ld, s > 0 ? ld : -ld + 0.8, H - t - 2.75, H - t, M.pine));
+  }
+  function buildSquare(g) {
+    const S = 35.43 / 2, H = 37.4, t = 1.18;
+    lb(g, -S, S, -S, S, H - t, H, M.squareTop);
+    lb(g, -7.8, 7.8, -7.8, 7.8, H - t - 1.6, H - t, M.blackWood);
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => rod(g, lv(sx * 8.9, sy * 8.9, 0), lv(sx * 6.2, sy * 6.2, H - t - 1), 1.5, M.blackWood, true));
+    lb(g, -10.3, 10.3, -7.5, 7.5, 0, 2.56, M.blackWood);
+    lb(g, -8.5, 8.5, -5.7, 5.7, 16.1, 17.2, M.blackWood);
+    lb(g, -8.5, 8.5, -5.9, -5.4, 16.1, 19.25, M.blackWood);
+    lb(g, -8.5, 8.5, 5.4, 5.9, 16.1, 19.25, M.blackWood);
+  }
+  function buildBike(g) {
+    const Lh = 63 / 2, Dh = 19.69 / 2, H = 35.43, t = 1.38, lx = 23, ly = 5.9, wr = 5.9, bar = 5.12;
+    lb(g, -Lh, Lh, -Dh, Dh, H - t, H, M.bikeTop);
+    [-4.9, 0, 4.9].forEach((y) => lb(g, -Lh + 1.2, Lh - 1.2, y - 0.08, y + 0.08, H - 0.02, H + 0.02, M.groove, false));
+    [-1, 1].forEach((sx) => [-1, 1].forEach((sy) => {
+      const x = sx * lx, y = sy * ly;
+      rod(g, lv(x, y, wr), lv(x, y, H - t), 0.55, M.iron);
+      const wy = sy * (ly + 1.4);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(wr - 0.35, 0.35, 8, 40), M.iron);
+      rim.position.copy(lv(x, wy, wr)); rim.castShadow = true; g.add(rim);
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2;
+        rod(g, lv(x, wy, wr), lv(x + Math.cos(a) * (wr - 0.4), wy, wr + Math.sin(a) * (wr - 0.4)), 0.12, M.iron);
+      }
+      rod(g, lv(x, wy, wr), lv(x, y, wr), 0.4, M.iron);
+    }));
+    [-1, 1].forEach((sx) => rod(g, lv(sx * lx, -ly, bar), lv(sx * lx, ly, bar), 0.45, M.iron));
+    rod(g, lv(-lx, 0, bar), lv(lx, 0, bar), 0.5, M.iron);
+    [-1, 1].forEach((sy) => rod(g, lv(-lx, sy * ly, H - t - 0.6), lv(lx, sy * ly, H - t - 0.6), 0.45, M.iron));
+    [-1, 1].forEach((sx) => rod(g, lv(sx * lx, -ly, H - t - 0.6), lv(sx * lx, ly, H - t - 0.6), 0.45, M.iron));
+    rod(g, lv(-7, 0, H - t - 0.6), lv(-lx, 0, bar), 0.4, M.iron);
+    rod(g, lv(4, 0, H - t - 0.6), lv(lx, 0, bar), 0.4, M.iron);
+  }
+  const TABLES = {
+    rect: { n: 1, short: 'Rectangle', L: 62.99, D: 19.69, H: 37.4, build: buildRect, product: 'Ophelia & Co. · SKU W115125820 · $118.99',
+      note: 'Solid panel legs close off both ends, so people sit on the long sides only. At 19.69 deep, pulling it out for two-sided seating puts knees against knees.' },
+    square: { n: 2, short: 'Square', L: 35.43, D: 35.43, H: 37.4, build: buildSquare, product: 'Brand and price not in the screenshot',
+      note: 'One stool per side: 3 against the wall, 4 pulled out. Rated 300 lb, and made for 23.6–25.6 in seats, so your 24 in stools fit.' },
+    bike: { n: 3, short: 'Bike', L: 63, D: 19.69, H: 35.43, build: buildBike, product: '17 Stories · SKU W11995531… · $77.99',
+      note: 'The cheapest and lowest of the three. Its top is 11.4 in above your stools, at the low end of normal. The open metal frame leaves the ends usable.' },
+  };
+
+  // Owned stools, all 24" seats. Built with the backrest toward +y, then rotated so it faces away from the table.
+  function stool(x, y, type, dir, parent) {
     const g = new THREE.Group();
     g.userData.info = { key: 'stool-' + type };
     parent.add(g);
-    const S = STOOL_SEAT;
+    const S = STOOL_SEAT, cx = C.x, cy = C.y;
     if (type === 'swivel') {
-      cyl(x, y, S - 3, S, 8, M.stoolBlack, g, 28);
-      cyl(x, y, 1.5, S - 3, 1.1, M.chrome, g, 12);
-      cyl(x, y, 0, 1.5, 9, M.chrome, g, 32);
+      cyl(cx, cy, S - 3, S, 8, M.stoolBlack, g, 28);
+      cyl(cx, cy, 1.5, S - 3, 1.1, M.chrome, g, 12);
+      cyl(cx, cy, 0, 1.5, 9, M.chrome, g, 32);
       const ring = new THREE.Mesh(new THREE.TorusGeometry(7, 0.35, 8, 32), M.chrome);
       ring.rotation.x = Math.PI / 2;
-      ring.position.copy(v(x, y, 10));
+      ring.position.copy(v(cx, cy, 10));
       g.add(ring);
-      box(x - 0.6, x + 0.6, y + back * 6.2, y + back * 7.4, S, S + 3, M.chrome, g);
-      box(x - 7, x + 7, y + back * 7.6, y + back * 9.2, S + 3, S + 11, M.stoolBlack, g);
+      box(cx - 0.6, cx + 0.6, cy + 6.2, cy + 7.4, S, S + 3, M.chrome, g);
+      box(cx - 7, cx + 7, cy + 7.6, cy + 9.2, S + 3, S + 11, M.stoolBlack, g);
     } else {
       const c = M.stoolGrey;
-      box(x - 7.5, x + 7.5, y - 7.5, y + 7.5, S - 1.5, S, c, g);
-      [[-6, -6], [6, -6], [-6, 6], [6, 6]].forEach(([dx, dy]) => box(x + dx - 0.6, x + dx + 0.6, y + dy - 0.6, y + dy + 0.6, 0, S - 1.5, c, g));
-      box(x - 6, x + 6, y - 6.3, y - 5.7, 9, 9.8, c, g, false);
-      box(x - 6, x + 6, y + 5.7, y + 6.3, 9, 9.8, c, g, false);
-      box(x - 6.3, x - 5.7, y - 6, y + 6, 9, 9.8, c, g, false);
-      box(x + 5.7, x + 6.3, y - 6, y + 6, 9, 9.8, c, g, false);
+      box(cx - 7.5, cx + 7.5, cy - 7.5, cy + 7.5, S - 1.5, S, c, g);
+      [[-6, -6], [6, -6], [-6, 6], [6, 6]].forEach(([dx, dy]) => box(cx + dx - 0.6, cx + dx + 0.6, cy + dy - 0.6, cy + dy + 0.6, 0, S - 1.5, c, g));
+      box(cx - 6, cx + 6, cy - 6.3, cy - 5.7, 9, 9.8, c, g, false);
+      box(cx - 6, cx + 6, cy + 5.7, cy + 6.3, 9, 9.8, c, g, false);
+      box(cx - 6.3, cx - 5.7, cy - 6, cy + 6, 9, 9.8, c, g, false);
+      box(cx + 5.7, cx + 6.3, cy - 6, cy + 6, 9, 9.8, c, g, false);
       if (type === 'grey') {
-        const by = y + back * 6.6;
-        [-6, 6].forEach((dx) => box(x + dx - 0.6, x + dx + 0.6, by - 0.6, by + 0.6, S, S + 13, c, g));
-        box(x - 7, x + 7, by - 0.7, by + 0.7, S + 6, S + 13, c, g);
+        [-6, 6].forEach((dx) => box(cx + dx - 0.6, cx + dx + 0.6, cy + 6, cy + 7.2, S, S + 13, c, g));
+        box(cx - 7, cx + 7, cy + 5.9, cy + 7.3, S + 6, S + 13, c, g);
       }
     }
+    g.position.set(x - cx, 0, y - cy);
+    g.rotation.y = Math.atan2(dir[0], dir[1]);
   }
-  function buildTable(opt, len) {
+  const STOOL_ORDER = ['swivel', 'swivel', 'grey', 'grey', 'backless'];
+  function seatPlan(type, x0, y0) {
+    const T = TABLES[type], x1 = x0 + T.L, y1 = y0 + T.D, cx = x0 + T.L / 2, cy = y0 + T.D / 2;
+    const both = y0 >= 18, seats = [];
+    if (type === 'square') {
+      seats.push([cx, y1 + 10, [0, 1]], [x0 - 10, cy, [-1, 0]], [x1 + 10, cy, [1, 0]]);
+      if (both) seats.push([cx, y0 - 10, [0, -1]]);
+    } else {
+      [1, 3, 5].forEach((k) => seats.push([x0 + (T.L / 6) * k, y1 + 10, [0, 1]]));
+      if (both) [1, 3].forEach((k) => seats.push([x0 + (T.L / 4) * k, y0 - 10, [0, -1]]));
+    }
+    return seats.map(([x, y, dir], i) => ({ x, y, dir, type: STOOL_ORDER[i] }));
+  }
+  const tableGroup = group({ key: 'table' });
+  function buildTable() {
     while (tableGroup.children.length) tableGroup.remove(tableGroup.children[0]);
-    while (stoolZones.children.length) stoolZones.remove(stoolZones.children[0]);
-    if (opt === 'none') return;
-    const x0 = TABLE_RIGHT - len, x1 = TABLE_RIGHT;
-    const y0 = opt === 'A' ? 0 : 24, y1 = y0 + TABLE_D;
+    if (state.type === 'none') return;
+    const T = TABLES[state.type];
     const t = new THREE.Group();
     t.userData.info = { key: 'tableTop' };
     tableGroup.add(t);
-    box(x0, x1, y0, y1, TABLE_H - 1.5, TABLE_H, M.tableWood, t);
-    box(x0 + 2.5, x1 - 2.5, y0 + 2.5, y1 - 2.5, TABLE_H - 4.5, TABLE_H - 1.5, M.tableWood, t);
-    [[x0 + 2, y0 + 2], [x1 - 4.5, y0 + 2], [x0 + 2, y1 - 4.5], [x1 - 4.5, y1 - 4.5]].forEach(([x, y]) => box(x, x + 2.5, y, y + 2.5, 0, TABLE_H - 1.5, M.tableWood, t));
-    const xs = [1, 3, 5].map((k) => x0 + (len / 6) * k);
-    const roomSide = ['swivel', 'swivel', 'grey'];
-    if (opt === 'A') {
-      xs.forEach((x, i) => stool(x, y1 + 10, roomSide[i], 1, tableGroup));
-      zone(x0, x1, y1, y1 + 24, 0xc98a2b, stoolZones, 0.75, 0.22);
-    } else {
-      xs.forEach((x, i) => stool(x, y1 + 11, roomSide[i], 1, tableGroup));
-      [[x0 + len / 4, 'grey'], [x0 + (3 * len) / 4, 'backless']].forEach(([x, t]) => stool(x, y0 - 11, t, -1, tableGroup));
-      zone(x0, x1, 0, y0, 0xc98a2b, stoolZones, 0.75, 0.22);
-      zone(x0, x1, y1, y1 + 24, 0xc98a2b, stoolZones, 0.75, 0.22);
-    }
+    T.build(t);
+    t.position.set(state.x + T.L / 2 - C.x, 0, state.y + T.D / 2 - C.y);
+    seatPlan(state.type, state.x, state.y).forEach((st) => stool(st.x, st.y, st.type, st.dir, tableGroup));
   }
-  function tableMetrics(opt, len) {
-    const x0 = TABLE_RIGHT - len;
-    if (opt === 'A') {
-      const obstacle = x0 + len / 6 - STOOL_R;
-      return { x0, seats: 3, depth: TABLE_D + 24, passage: obstacle - 45, passageY: 40, obstacle };
-    }
-    if (opt === 'B') return { x0, seats: 5, depth: 24 + TABLE_D + 24, passage: x0 - 45, passageY: 45, obstacle: x0 };
-    return null;
+
+  // Geometry checks against the fixed room.
+  const COUCH = { x0: 0, x1: 45, y0: 35.5, y1: 148.5 };
+  function rectGap(a, b) {
+    const ax = b.x0 > a.x1 ? [a.x1, b.x0] : a.x0 > b.x1 ? [a.x0, b.x1] : null;
+    const ay = b.y0 > a.y1 ? [a.y1, b.y0] : a.y0 > b.y1 ? [a.y0, b.y1] : null;
+    const mx = (Math.max(a.x0, b.x0) + Math.min(a.x1, b.x1)) / 2, my = (Math.max(a.y0, b.y0) + Math.min(a.y1, b.y1)) / 2;
+    const p = [ax ? ax[0] : mx, ay ? ay[0] : my], q = [ax ? ax[1] : mx, ay ? ay[1] : my];
+    return { d: Math.hypot(q[0] - p[0], q[1] - p[1]), p, q };
+  }
+  function circleGap(r, c) {
+    const px = Math.min(Math.max(c.x, r.x0), r.x1), py = Math.min(Math.max(c.y, r.y0), r.y1);
+    const dc = Math.hypot(c.x - px, c.y - py) || 1e-6;
+    return { d: dc - c.r, p: [px, py], q: [c.x + ((px - c.x) / dc) * c.r, c.y + ((py - c.y) / dc) * c.r] };
+  }
+  function tableMetrics() {
+    if (state.type === 'none') return null;
+    const T = TABLES[state.type];
+    const rect = { x0: state.x, x1: state.x + T.L, y0: state.y, y1: state.y + T.D };
+    const seats = seatPlan(state.type, state.x, state.y).map((s) => ({ x: s.x, y: s.y, r: STOOL_R }));
+    let best = rectGap(COUCH, rect);
+    seats.forEach((c) => { const g = circleGap(COUCH, c); if (g.d < best.d) best = g; });
+    const obstacles = [
+      ['couch', COUCH, true],
+      ['radiator', { x0: 128, x1: W, y0: 0, y1: 41.5 }, true],
+      ['TV stand', { x0: 122, x1: W, y0: 55, y1: 125 }, stand.visible],
+      ['ottoman', OT, ottoman.visible],
+      ['kitchen door path', { x0: 3, x1: 35.5, y0: 0, y1: 32.5 }, true],
+    ];
+    const hits = [];
+    obstacles.forEach(([name, o, on]) => {
+      if (!on) return;
+      const hitT = rect.x0 < o.x1 - 0.01 && rect.x1 > o.x0 + 0.01 && rect.y0 < o.y1 - 0.01 && rect.y1 > o.y0 + 0.01;
+      const hitS = seats.some((c) => circleGap(o, c).d < -0.01);
+      if (hitT || hitS) hits.push(name + (hitT ? '' : ' (stool)'));
+    });
+    if (seats.some((c) => c.x - c.r < 0 || c.x + c.r > W || c.y - c.r < 0 || c.y + c.r > L)) hits.push('wall (stool)');
+    return { T, rect, seats: seats.length, walk: Math.max(0, best.d), a: best.p, b: best.q, hits };
   }
   const status = (w) => (w >= 30 ? ['ok', 'Clear'] : w >= 24 ? ['warn', 'Tight'] : ['bad', 'Pinched']);
 
@@ -650,56 +761,80 @@
   }
 
   // ---------- UI state ----------
-  const state = { opt: 'A', len: 72, labels: true };
+  let selected = null;
+  const state = { type: 'rect', pos: 'wall', x: RADIATOR_LINE - 62.99, y: 0, labels: true };
   const $ = (id) => document.getElementById(id);
   function setPressed(container, val) {
     container.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(val))));
   }
+  const fmt = (n) => (Math.round(n * 100) / 100).toString();
   function refreshTable() {
-    buildTable(state.opt, state.len);
-    // Rebuild dynamic dimension line.
+    buildTable();
     for (let i = dimLabels.length - 1; i >= 0; i--) if (dimLabels[i].parent === dynDims) { dimLabels[i].el.remove(); dimLabels.splice(i, 1); }
     while (dynDims.children.length) dynDims.remove(dynDims.children[0]);
-    const m = tableMetrics(state.opt, state.len);
+    const m = tableMetrics();
     const statsEl = $('tableStats'), noteEl = $('tableNote');
     const tl = labels.find((l) => l.dynamic);
+    ['tableX', 'tableY'].forEach((id) => { $(id).disabled = !m; });
+    setPressed($('tablePos'), state.pos);
     if (!m) {
       statsEl.innerHTML = '';
+      $('tableXOut').textContent = $('tableYOut').textContent = '';
       noteEl.textContent = 'No table shown. The kitchen door pocket opens straight into the room.';
-      tl.el.hidden = true;
       return;
     }
-    const [cls, word] = status(m.passage);
-    const lab = dimLine([45, m.passageY], [m.obstacle, m.passageY], 1.4, m.passage.toFixed(1) + ' passage', dynDims, cls);
-    makeEl(lab);
-    const y0 = state.opt === 'A' ? 0 : 24;
-    tl.pos.copy(v(TABLE_RIGHT - state.len / 2, y0 + TABLE_D / 2, TABLE_H + 5));
+    const T = m.T;
+    $('tableX').max = String(W - T.L);
+    $('tableY').max = String(L - T.D);
+    $('tableX').value = String(state.x);
+    $('tableY').value = String(state.y);
+    $('tableXOut').textContent = `x ${fmt(m.rect.x0)}–${fmt(m.rect.x1)}`;
+    $('tableYOut').textContent = `${fmt(state.y)} in`;
+    const [cls, word] = status(m.walk);
+    if (m.walk > 0.5) makeEl(dimLine(m.a, m.b, 1.4, m.walk.toFixed(1) + ' walkway', dynDims, cls));
+    tl.el.textContent = `${T.n} · ${T.short} · candidate`;
+    tl.pos.copy(v(m.rect.x0 + T.L / 2, m.rect.y0 + T.D / 2, T.H + 5));
     const rows = [
-      ['Table position', `x ${m.x0}–${TABLE_RIGHT}, y ${y0}–${y0 + TABLE_D}`],
+      ['Product', T.product],
+      ['Size', `${T.L} × ${T.D} × ${T.H} H`],
       ['Seats', `${m.seats} of 5 stools`],
-      ['Floor used from top wall', `${m.depth} in`],
-      ['Couch arm → nearest ' + (state.opt === 'A' ? 'stool' : 'table end'), `${m.passage.toFixed(1)} in<span class="pill ${cls}">${word}</span>`],
+      ['Stool seat → top', `${(T.H - STOOL_SEAT).toFixed(1)} in`],
+      ['Walkway past couch', `${m.walk.toFixed(1)} in<span class="pill ${cls}">${word}</span>`],
+      ['Collides with', m.hits.length ? `<span class="pill bad">${m.hits.join(', ')}</span>` : 'nothing'],
     ];
     statsEl.innerHTML = rows.map(([k, val]) => `<dt>${k}</dt><dd>${val}</dd>`).join('');
-    const tip = state.opt === 'A'
-      ? 'The only way from the kitchen door into the room runs between the couch\'s top arm (y 35.5) and the end stool.'
-      : 'Pulled out to seat both sides, the table itself sits between the couch\'s top arm and the rest of the room. That blocks the kitchen door path.';
-    noteEl.textContent = tip + ' A walkway wants about 30 in; 24 in is a squeeze.';
+    noteEl.textContent = T.note + ' The walkway is the narrowest gap between the couch and the table or a stool, on the path in from the kitchen door. About 30 in is comfortable; 24 in is a squeeze.';
     if (selected && selected.userData.info && /table|stool/.test(selected.userData.info.key)) select(null);
   }
-  $('tableOpt').addEventListener('click', (e) => {
+  // Presets put the table's right end (or the square table's side stool) at the radiator line.
+  const presetX = (T) => Math.max(0, RADIATOR_LINE - T.L - (T === TABLES.square ? 2 * STOOL_R + 2 : 0));
+  function applyPreset() {
+    if (state.type === 'none' || !state.pos) return;
+    const T = TABLES[state.type];
+    state.x = presetX(T);
+    state.y = state.pos === 'wall' ? 0 : 24;
+  }
+  $('tableType').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
-    state.opt = b.dataset.v; setPressed($('tableOpt'), state.opt); refreshTable();
+    state.type = b.dataset.v; setPressed($('tableType'), state.type);
+    if (!state.pos) state.pos = 'wall';
+    applyPreset(); refreshTable();
   });
-  $('tableLen').addEventListener('click', (e) => {
-    const b = e.target.closest('button'); if (!b) return;
-    state.len = Number(b.dataset.v); setPressed($('tableLen'), state.len); refreshTable();
+  $('tablePos').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b || state.type === 'none') return;
+    state.pos = b.dataset.v; applyPreset(); refreshTable();
   });
+  ['tableX', 'tableY'].forEach((id) => $(id).addEventListener('input', () => {
+    state[id === 'tableX' ? 'x' : 'y'] = Number($(id).value);
+    const px = presetX(TABLES[state.type]);
+    state.pos = state.x === px && state.y === 0 ? 'wall' : state.x === px && state.y === 24 ? 'pulled' : '';
+    refreshTable();
+  }));
   if (window.matchMedia('(max-width: 760px)').matches) $('lyr-labels').checked = false;
   const bindLayer = (id, fn) => { const el = $(id); el.addEventListener('change', () => fn(el.checked)); fn(el.checked); };
   bindLayer('lyr-rug', (on) => { rug.visible = on; });
-  bindLayer('lyr-stand', (on) => { stand.visible = on; });
-  bindLayer('lyr-ottoman', (on) => { ottoman.visible = on; });
+  bindLayer('lyr-stand', (on) => { stand.visible = on; refreshTable(); });
+  bindLayer('lyr-ottoman', (on) => { ottoman.visible = on; refreshTable(); });
   bindLayer('lyr-lamp', (on) => { lamp.visible = on; });
   bindLayer('lyr-zones', (on) => { zones.visible = on; });
   bindLayer('lyr-dims', (on) => { dims.visible = on; });
@@ -726,16 +861,14 @@
     'stool-backless': { name: 'Grey backless stool', tag: 'Owned · 1', rows: [['Seat height', '24'], ['Back', 'no'], ['Seat', '15 × 15 (assumed)']], note: 'Matches the grey stools, without the back.' },
   };
   function tableInfo() {
-    const m = tableMetrics(state.opt, state.len);
-    const [cls, word] = status(m.passage);
-    const y0 = state.opt === 'A' ? 0 : 24;
+    const m = tableMetrics(), T = m.T;
+    const [, word] = status(m.walk);
     return {
-      name: `Counter table, option ${state.opt}`, tag: 'Candidate', cand: true,
-      rows: [['Size', `${state.len} × ${TABLE_D} × ${TABLE_H} (assumed)`], ['Position', `x ${m.x0}–${TABLE_RIGHT}, y ${y0}–${y0 + TABLE_D}`], ['Seats', String(m.seats)], ['Kitchen passage', `${m.passage.toFixed(1)} (${word.toLowerCase()})`]],
-      note: state.opt === 'A' ? 'Against the top wall. 3 stools on the room side; the other 2 are spare.' : 'Pulled out 24 in from the wall so stools fit on both sides: 3 on the room side, 2 on the wall side. All 5 stools in use.',
+      name: `Table ${T.n} · ${T.short}`, tag: 'Candidate', cand: true,
+      rows: [['Product', T.product], ['Size', `${T.L} × ${T.D} × ${T.H} H`], ['Position', `x ${fmt(m.rect.x0)}–${fmt(m.rect.x1)}, y ${fmt(m.rect.y0)}–${fmt(m.rect.y1)}`], ['Seats', `${m.seats} of 5 stools`], ['Walkway past couch', `${m.walk.toFixed(1)} (${word.toLowerCase()})`]],
+      note: T.note,
     };
   }
-  let selected = null;
   const selBox = new THREE.BoxHelper(undefined, 0x2b4a86);
   selBox.visible = false;
   scene.add(selBox);
@@ -821,7 +954,7 @@
     all.forEach((l) => {
       let show = state.labels || l.kind === 'dim';
       if (l.obj && !visibleChain(l.obj)) show = false;
-      if (l.dynamic && state.opt === 'none') show = false;
+      if (l.dynamic && state.type === 'none') show = false;
       if (l.kind === 'dim' && !visibleChain(l.parent)) show = false;
       if (show) {
         tmp.copy(l.pos).project(camera);
