@@ -149,6 +149,7 @@
         <label><input type="checkbox" id="lyr-rug" checked> Rug</label>
         <label><input type="checkbox" id="lyr-stand" checked> TV stand</label>
         <label><input type="checkbox" id="lyr-ottoman" checked> Ottoman</label>
+        <label><input type="checkbox" id="lyr-lamp" checked> Lamp</label>
         <label><input type="checkbox" id="lyr-zones" checked> Keep-clear zones</label>
         <label><input type="checkbox" id="lyr-dims" checked> Dimensions</label>
         <label><input type="checkbox" id="lyr-labels" checked> Labels</label>
@@ -171,7 +172,7 @@
         <li>Radiator height <b>26</b></li>
         <li>Recessed cabinet height <b>84</b></li>
         <li>Table size (top of spec range) <b>72 × 30 × 36</b></li>
-        <li>Stool seat height <b>26</b></li>
+        <li>Floor lamp height / shade <b>60 / 14</b></li>
       </ul>
       <p class="note">All units are inches. Origin is the top-left floor corner (kitchen side). Coffee table and beer fridge are left out.</p>
     </section>
@@ -185,7 +186,7 @@
   // ---------- Room constants (inches, spec coordinates) ----------
   // Spec: x → right (0–137), y → toward hallway (0–155), z → up.
   const W = 137, L = 155, H = 96, DOOR_H = 80, WALL_T = 4;
-  const TABLE_RIGHT = 128, TABLE_D = 30, TABLE_H = 36, STOOL_R = 7.5, STOOL_SEAT = 26;
+  const TABLE_RIGHT = 128, TABLE_D = 30, TABLE_H = 36, STOOL_R = 8, STOOL_SEAT = 24;
 
   const v = (x, y, z) => new THREE.Vector3(x - W / 2, z, y - L / 2);
   const toSpec = (p) => ({ x: p.x + W / 2, y: p.z + L / 2, z: p.y });
@@ -232,7 +233,10 @@
     black: std(0x121314, { roughness: 0.45 }),
     metal: std(0x2a2c2e, { roughness: 0.5, metalness: 0.5 }),
     radiator: std(0xc3c6c6, { roughness: 0.55, metalness: 0.35 }),
-    ottoman: std(0x7d8791, { roughness: 1 }),
+    stoolBlack: std(0x1b1c1e, { roughness: 0.5 }),
+    stoolGrey: std(0x8b9095, { roughness: 0.8 }),
+    chrome: std(0xb9bdc1, { roughness: 0.25, metalness: 0.85 }),
+    shade: std(0xf6ead6, { roughness: 1, emissive: 0xffd9a0, emissiveIntensity: 0.35, side: THREE.DoubleSide }),
     cabinet: std(0xeeeeea, { roughness: 0.75 }),
     recess: std(0xcfd0cb, { roughness: 1 }),
     glass: new THREE.MeshStandardMaterial({ color: 0xbcd6e4, transparent: true, opacity: 0.32, roughness: 0.05, metalness: 0.1, depthWrite: false }),
@@ -398,11 +402,22 @@
     box(44.6, 45.3, a, b, 3, 25, M.navy, couch, false);
   });
 
-  // ---------- Router gap ----------
+  // ---------- Router gap: lamp in the back corner, router moved forward ----------
   const router = group({ key: 'router' });
-  box(2, 10, 150, 154, 0, 1.6, M.router, router);
-  box(3, 3.6, 152.6, 153.2, 1.6, 7, M.router, router);
-  box(8.4, 9, 152.6, 153.2, 1.6, 7, M.router, router);
+  box(28, 36, 150, 154, 0, 1.6, M.router, router);
+  box(29, 29.6, 152.6, 153.2, 1.6, 7, M.router, router);
+  box(34.4, 35, 152.6, 153.2, 1.6, 7, M.router, router);
+
+  const LAMP = { x: 7, y: 151.75 };
+  const lamp = group({ key: 'lamp' });
+  cyl(LAMP.x, LAMP.y, 0, 1, 3, M.metal, lamp, 24);
+  cyl(LAMP.x, LAMP.y, 1, 56, 0.45, M.metal, lamp, 10);
+  const shadeMesh = new THREE.Mesh(new THREE.CylinderGeometry(6, 7, 10, 32, 1, true), M.shade);
+  shadeMesh.position.copy(v(LAMP.x, LAMP.y, 59));
+  lamp.add(shadeMesh);
+  const bulb = new THREE.PointLight(0xffd6a0, 0.45, 220, 1.6);
+  bulb.position.copy(v(LAMP.x, LAMP.y, 58));
+  lamp.add(bulb);
 
   // ---------- TV stand (candidate) + TV ----------
   const stand = group({ key: 'stand' });
@@ -469,11 +484,18 @@
   rug.add(rugTop);
 
   // ---------- Ottoman (owned, placeholder position) ----------
-  const OT = { x0: 50, x1: 106, y0: 124, y1: 152 };
+  const OT = { x0: 64, x1: 92, y0: 97, y1: 153 };
   const ottoman = group({ key: 'ottoman' });
-  box(OT.x0 + 0.5, OT.x1 - 0.5, OT.y0 + 0.5, OT.y1 - 0.5, 0.4, 14, M.ottoman, ottoman);
-  box(OT.x0, OT.x1, OT.y0, OT.y1, 14, 18, M.ottoman, ottoman);
-  box(OT.x0 - 0.2, OT.x1 + 0.2, OT.y0 - 0.2, OT.y1 + 0.2, 13.8, 14.3, M.navy, ottoman, false);
+  box(OT.x0 + 0.5, OT.x1 - 0.5, OT.y0 + 0.5, OT.y1 - 0.5, 0.4, 14, M.fabric, ottoman);
+  box(OT.x0, OT.x1, OT.y0, OT.y1, 14, 18, M.fabric, ottoman);
+  // Navy piping around the lid seam and the top edge.
+  [[13.7, 14.4], [17.6, 18.3]].forEach(([z0, z1]) => {
+    const o = 0.35;
+    box(OT.x0 - o, OT.x1 + o, OT.y0 - o, OT.y0 + o, z0, z1, M.navy, ottoman, false);
+    box(OT.x0 - o, OT.x1 + o, OT.y1 - o, OT.y1 + o, z0, z1, M.navy, ottoman, false);
+    box(OT.x0 - o, OT.x0 + o, OT.y0 - o, OT.y1 + o, z0, z1, M.navy, ottoman, false);
+    box(OT.x1 - o, OT.x1 + o, OT.y0 - o, OT.y1 + o, z0, z1, M.navy, ottoman, false);
+  });
 
   // ---------- Floor overlays (keep-clear zones) ----------
   const zones = new THREE.Group();
@@ -491,22 +513,42 @@
   }
   zone(3, 35.5, 0, 32.5, 0x2f7d4f, zones);
   zone(128, W, 0, 41.5, 0xb3372b, zones, 0.8);
-  zone(0, 12, 148.5, L, 0x2f7d4f, zones);
+  zone(0, 45, 148.5, L, 0x2f7d4f, zones);
 
   // ---------- Table options ----------
   const tableGroup = group({ key: 'table' });
   const stoolZones = new THREE.Group();
   zones.add(stoolZones);
-  function stool(x, y, parent) {
+  // Owned stools, all 24" seats. `back` is +1 when the backrest sits on the +y side.
+  function stool(x, y, type, back, parent) {
     const g = new THREE.Group();
-    g.userData.info = { key: 'stool' };
+    g.userData.info = { key: 'stool-' + type };
     parent.add(g);
-    cyl(x, y, STOOL_SEAT - 1.5, STOOL_SEAT, STOOL_R, M.tableWood, g, 24);
-    [[-4.6, -4.6], [4.6, -4.6], [-4.6, 4.6], [4.6, 4.6]].forEach(([dx, dy]) => cyl(x + dx, y + dy, 0, STOOL_SEAT - 1.5, 0.55, M.metal, g, 8));
-    box(x - 4.6, x + 4.6, y - 4.9, y - 4.3, 9, 9.8, M.metal, g, false);
-    box(x - 4.6, x + 4.6, y + 4.3, y + 4.9, 9, 9.8, M.metal, g, false);
-    box(x - 4.9, x - 4.3, y - 4.6, y + 4.6, 9, 9.8, M.metal, g, false);
-    box(x + 4.3, x + 4.9, y - 4.6, y + 4.6, 9, 9.8, M.metal, g, false);
+    const S = STOOL_SEAT;
+    if (type === 'swivel') {
+      cyl(x, y, S - 3, S, 8, M.stoolBlack, g, 28);
+      cyl(x, y, 1.5, S - 3, 1.1, M.chrome, g, 12);
+      cyl(x, y, 0, 1.5, 9, M.chrome, g, 32);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(7, 0.35, 8, 32), M.chrome);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.copy(v(x, y, 10));
+      g.add(ring);
+      box(x - 0.6, x + 0.6, y + back * 6.2, y + back * 7.4, S, S + 3, M.chrome, g);
+      box(x - 7, x + 7, y + back * 7.6, y + back * 9.2, S + 3, S + 11, M.stoolBlack, g);
+    } else {
+      const c = M.stoolGrey;
+      box(x - 7.5, x + 7.5, y - 7.5, y + 7.5, S - 1.5, S, c, g);
+      [[-6, -6], [6, -6], [-6, 6], [6, 6]].forEach(([dx, dy]) => box(x + dx - 0.6, x + dx + 0.6, y + dy - 0.6, y + dy + 0.6, 0, S - 1.5, c, g));
+      box(x - 6, x + 6, y - 6.3, y - 5.7, 9, 9.8, c, g, false);
+      box(x - 6, x + 6, y + 5.7, y + 6.3, 9, 9.8, c, g, false);
+      box(x - 6.3, x - 5.7, y - 6, y + 6, 9, 9.8, c, g, false);
+      box(x + 5.7, x + 6.3, y - 6, y + 6, 9, 9.8, c, g, false);
+      if (type === 'grey') {
+        const by = y + back * 6.6;
+        [-6, 6].forEach((dx) => box(x + dx - 0.6, x + dx + 0.6, by - 0.6, by + 0.6, S, S + 13, c, g));
+        box(x - 7, x + 7, by - 0.7, by + 0.7, S + 6, S + 13, c, g);
+      }
+    }
   }
   function buildTable(opt, len) {
     while (tableGroup.children.length) tableGroup.remove(tableGroup.children[0]);
@@ -521,11 +563,13 @@
     box(x0 + 2.5, x1 - 2.5, y0 + 2.5, y1 - 2.5, TABLE_H - 4.5, TABLE_H - 1.5, M.tableWood, t);
     [[x0 + 2, y0 + 2], [x1 - 4.5, y0 + 2], [x0 + 2, y1 - 4.5], [x1 - 4.5, y1 - 4.5]].forEach(([x, y]) => box(x, x + 2.5, y, y + 2.5, 0, TABLE_H - 1.5, M.tableWood, t));
     const xs = [1, 3, 5].map((k) => x0 + (len / 6) * k);
+    const roomSide = ['swivel', 'swivel', 'grey'];
     if (opt === 'A') {
-      xs.forEach((x) => stool(x, y1 + 10, tableGroup));
+      xs.forEach((x, i) => stool(x, y1 + 10, roomSide[i], 1, tableGroup));
       zone(x0, x1, y1, y1 + 24, 0xc98a2b, stoolZones, 0.75, 0.22);
     } else {
-      xs.forEach((x) => { stool(x, y0 - 11, tableGroup); stool(x, y1 + 11, tableGroup); });
+      xs.forEach((x, i) => stool(x, y1 + 11, roomSide[i], 1, tableGroup));
+      [[x0 + len / 4, 'grey'], [x0 + (3 * len) / 4, 'backless']].forEach(([x, t]) => stool(x, y0 - 11, t, -1, tableGroup));
       zone(x0, x1, 0, y0, 0xc98a2b, stoolZones, 0.75, 0.22);
       zone(x0, x1, y1, y1 + 24, 0xc98a2b, stoolZones, 0.75, 0.22);
     }
@@ -536,7 +580,7 @@
       const obstacle = x0 + len / 6 - STOOL_R;
       return { x0, seats: 3, depth: TABLE_D + 24, passage: obstacle - 45, passageY: 40, obstacle };
     }
-    if (opt === 'B') return { x0, seats: 6, depth: 24 + TABLE_D + 24, passage: x0 - 45, passageY: 45, obstacle: x0 };
+    if (opt === 'B') return { x0, seats: 5, depth: 24 + TABLE_D + 24, passage: x0 - 45, passageY: 45, obstacle: x0 };
     return null;
   }
   const status = (w) => (w >= 30 ? ['ok', 'Clear'] : w >= 24 ? ['warn', 'Tight'] : ['bad', 'Pinched']);
@@ -579,8 +623,9 @@
     { text: 'Kitchen door', pos: v(19.25, 0, 86), obj: kitchenDoor },
     { text: 'Hallway doorway', pos: v(89, L, 88), obj: hallDoor },
     { text: 'Rug 9×12 · candidate', cls: 'cand', pos: v(86, 118, 1), obj: rug },
-    { text: 'Ottoman · spot TBD', pos: v(78, 138, 20), obj: ottoman },
-    { text: 'Router', pos: v(6, 152, 9), obj: router },
+    { text: 'Ottoman · spot TBD', pos: v(78, 142, 22), obj: ottoman },
+    { text: 'Router', pos: v(32, 152, 9), obj: router },
+    { text: 'Lamp · idea', cls: 'cand', pos: v(LAMP.x, LAMP.y, 70), obj: lamp },
     { text: 'Table · candidate', cls: 'cand', pos: new THREE.Vector3(), obj: tableGroup, dynamic: true },
   ];
   function makeEl(l) {
@@ -624,7 +669,7 @@
     tl.pos.copy(v(TABLE_RIGHT - state.len / 2, y0 + TABLE_D / 2, TABLE_H + 5));
     const rows = [
       ['Table position', `x ${m.x0}–${TABLE_RIGHT}, y ${y0}–${y0 + TABLE_D}`],
-      ['Seats', `${m.seats} of 7 stools`],
+      ['Seats', `${m.seats} of 5 stools`],
       ['Floor used from top wall', `${m.depth} in`],
       ['Couch arm → nearest ' + (state.opt === 'A' ? 'stool' : 'table end'), `${m.passage.toFixed(1)} in<span class="pill ${cls}">${word}</span>`],
     ];
@@ -648,6 +693,7 @@
   bindLayer('lyr-rug', (on) => { rug.visible = on; });
   bindLayer('lyr-stand', (on) => { stand.visible = on; });
   bindLayer('lyr-ottoman', (on) => { ottoman.visible = on; });
+  bindLayer('lyr-lamp', (on) => { lamp.visible = on; });
   bindLayer('lyr-zones', (on) => { zones.visible = on; });
   bindLayer('lyr-dims', (on) => { dims.visible = on; });
   bindLayer('lyr-labels', (on) => { state.labels = on; });
@@ -664,10 +710,13 @@
     kitchen: { name: 'Kitchen door', tag: 'Keep clear', rows: [['Opening', 'x 3–35.5 (32.5)'], ['Height', '80 (assumed)']], note: 'Active traffic. The green floor zone marks the pocket in front of it.' },
     hall: { name: 'Hallway doorway', tag: 'Only exit', rows: [['Opening', 'x 56–122 (66)'], ['Height', '80 (assumed)']], note: 'The ottoman may partly block it.' },
     rug: { name: 'Rug, 9 × 12 ft', tag: 'Candidate', cand: true, rows: [['Size', '108 × 144'], ['Position', 'x 6–114, y 5–149'], ['Gap to TV stand', '8']], note: 'Dark and patterned. The couch\'s front legs sit on it. Use a rug pad on the hardwood.' },
-    ottoman: { name: 'Storage ottoman', tag: 'Owned · spot TBD', rows: [['Footprint', '56 × 28 (approx.)'], ['Height', '18 (matches seat, assumed)'], ['Shown at', `x ${OT.x0}–${OT.x1}, y ${OT.y0}–${OT.y1}`]], note: 'Placeholder spot near the hallway doorway, partly in front of it.' },
-    router: { name: 'Router gap', tag: 'Keep open', rows: [['Span', 'y 148.5–155 on the left wall'], ['Width', '6.5']], note: 'Room for the wifi router and maybe a lamp.' },
+    ottoman: { name: 'Storage ottoman', tag: 'Owned · spot TBD', rows: [['Footprint', '28 W × 56 L (approx.)'], ['Height', '18 (matches seat, assumed)'], ['Shown at', `x ${OT.x0}–${OT.x1}, y ${OT.y0}–${OT.y1}`]], note: 'Same white Sunbrella and navy piping as the couch. Long side runs parallel to the couch. Placeholder spot, partly in front of the hallway doorway.' },
+    router: { name: 'Router', tag: 'Owned', rows: [['Gap', 'y 148.5–155 (6.5) past the couch end'], ['Shown at', 'x 28–36, y 150–154']], note: 'Moved forward in the gap to leave the back corner for a lamp.' },
+    lamp: { name: 'Floor lamp', tag: 'Idea · not bought', cand: true, rows: [['Spot', 'back corner, behind the couch end'], ['Base', '6 dia max'], ['Height', '60 (assumed)'], ['Shade', '14 dia (assumed)']], note: 'The gap is only 6.5 wide, so the base must be 6" or less. The shade sits well above the couch (36) and can overhang the arm.' },
     floor: { name: 'Room', tag: 'Measured', rows: [['Width', '137 (x)'], ['Length', '155 (y)'], ['Area', '147.5 sq ft'], ['Ceiling', '96 (assumed)']], note: 'Hardwood floor. Origin is the top-left corner by the kitchen door.' },
-    stool: { name: 'High-top stool', tag: 'Owned · 7 in basement', rows: [['Seat height', '26 (assumed)'], ['Seat diameter', '15 (assumed)']], note: 'Actual heights vary and are unmeasured. A 36" table needs 26–28" seats.' },
+    'stool-swivel': { name: 'Black swivel stool', tag: 'Owned · 2 of these', rows: [['Seat height', '24 (adjustable)'], ['Back', 'yes'], ['Seat diameter', '16 (assumed)']], note: 'Gas-lift swivel. 24 in leaves 12 in under a 36 in tabletop, the usual counter-stool gap.' },
+    'stool-grey': { name: 'Grey stool with back', tag: 'Owned · 2 of these', rows: [['Seat height', '24'], ['Back', 'yes'], ['Seat', '15 × 15 (assumed)']], note: 'Fixed height, right for a 36 in counter table.' },
+    'stool-backless': { name: 'Grey backless stool', tag: 'Owned · 1', rows: [['Seat height', '24'], ['Back', 'no'], ['Seat', '15 × 15 (assumed)']], note: 'Matches the grey stools, without the back.' },
   };
   function tableInfo() {
     const m = tableMetrics(state.opt, state.len);
@@ -676,7 +725,7 @@
     return {
       name: `Counter table, option ${state.opt}`, tag: 'Candidate', cand: true,
       rows: [['Size', `${state.len} × ${TABLE_D} × ${TABLE_H} (assumed)`], ['Position', `x ${m.x0}–${TABLE_RIGHT}, y ${y0}–${y0 + TABLE_D}`], ['Seats', String(m.seats)], ['Kitchen passage', `${m.passage.toFixed(1)} (${word.toLowerCase()})`]],
-      note: state.opt === 'A' ? 'Against the top wall. Stools on the room side only.' : 'Pulled out 24 in from the wall so stools fit on both sides.',
+      note: state.opt === 'A' ? 'Against the top wall. 3 stools on the room side; the other 2 are spare.' : 'Pulled out 24 in from the wall so stools fit on both sides: 3 on the room side, 2 on the wall side. All 5 stools in use.',
     };
   }
   let selected = null;
