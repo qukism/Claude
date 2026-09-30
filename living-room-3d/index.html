@@ -63,6 +63,9 @@
   .seg { display: flex; gap: 0; }
   .seg button { border-radius: 0; flex: 1; padding: 7px 6px; }
   .seg button + button { border-left: none; }
+  .seg.wrap { flex-wrap: wrap; }
+  #coffeeControls { margin-top: 12px; }
+  .seg.wrap button { flex: 1 1 30%; border-left: 1px solid var(--line); border-radius: 0; margin: 0 -1px -1px 0; }
   .seg button:first-child { border-radius: 4px 0 0 4px; }
   .seg button:last-child { border-radius: 0 4px 4px 0; }
   .field { display: flex; flex-direction: column; gap: 6px; }
@@ -169,11 +172,50 @@
     </section>
 
     <section>
+      <h2>In front of the couch</h2>
+      <div class="field">
+        <span>Piece</span>
+        <div class="seg" role="group" aria-label="In front of the couch" id="frontMode">
+          <button type="button" data-v="ottoman" aria-pressed="true">Ottoman chaise</button>
+          <button type="button" data-v="coffee" aria-pressed="false">Coffee table</button>
+          <button type="button" data-v="none" aria-pressed="false">Nothing</button>
+        </div>
+      </div>
+      <div id="coffeeControls" hidden>
+        <div class="field">
+          <span>Coffee table (all under $150)</span>
+          <div class="seg wrap" role="group" aria-label="Coffee table" id="coffeeType">
+            <button type="button" data-v="greyson" aria-pressed="true">Greyson</button>
+            <button type="button" data-v="juliet" aria-pressed="false">Juliet</button>
+            <button type="button" data-v="asher" aria-pressed="false">Asher</button>
+            <button type="button" data-v="marble" aria-pressed="false">Marble</button>
+            <button type="button" data-v="holmerud" aria-pressed="false">Holmerud</button>
+          </div>
+        </div>
+        <div class="field">
+          <span>Rotation</span>
+          <div class="seg" role="group" aria-label="Coffee table rotation" id="coffeeRot">
+            <button type="button" data-v="90" aria-pressed="true">Parallel to couch</button>
+            <button type="button" data-v="0" aria-pressed="false">Perpendicular</button>
+          </div>
+        </div>
+        <div class="field">
+          <label class="slider" for="coffeeX"><span>Couch ↔ TV</span><output id="coffeeXOut"></output></label>
+          <input type="range" id="coffeeX" min="0" max="120" step="0.5" value="61">
+        </div>
+        <div class="field">
+          <label class="slider" for="coffeeY"><span>Kitchen end ↔ hallway end</span><output id="coffeeYOut"></output></label>
+          <input type="range" id="coffeeY" min="0" max="120" step="0.5" value="68">
+        </div>
+        <dl class="stats" id="coffeeStats"></dl>
+      </div>
+    </section>
+
+    <section>
       <h2>Layers</h2>
       <div class="layers">
         <label><input type="checkbox" id="lyr-rug" checked> Rug</label>
         <label><input type="checkbox" id="lyr-stand" checked> TV stand</label>
-        <label><input type="checkbox" id="lyr-ottoman" checked> Ottoman</label>
         <label><input type="checkbox" id="lyr-lamp" checked> Lamp</label>
         <label><input type="checkbox" id="lyr-zones" checked> Keep-clear zones</label>
         <label><input type="checkbox" id="lyr-dims" checked> Dimensions</label>
@@ -261,6 +303,11 @@
     groove: std(0x2b1d14, { roughness: 0.9 }),
     blackWood: std(0x18191a, { roughness: 0.7 }),
     iron: std(0x1d1e20, { roughness: 0.45, metalness: 0.6 }),
+    acorn: std(0xa8733f, { roughness: 0.6 }),
+    walnut: std(0x6a4630, { roughness: 0.6 }),
+    oak: std(0xc9a676, { roughness: 0.65 }),
+    gold: std(0xc9a24a, { roughness: 0.3, metalness: 0.8 }),
+    marble: std(0xf1f0ec, { roughness: 0.25 }),
     standWood: std(0x6e4f39, { roughness: 0.7 }),
     black: std(0x121314, { roughness: 0.45 }),
     metal: std(0x2a2c2e, { roughness: 0.5, metalness: 0.5 }),
@@ -737,6 +784,7 @@
       ['radiator', { x0: 128, x1: W, y0: 0, y1: 41.5 }, true],
       ['TV stand', { x0: 122, x1: W, y0: 55, y1: 125 }, stand.visible],
       ['ottoman', OT, ottoman.visible],
+      ['coffee table', coffeeRect(), coffee.visible],
       ['kitchen door path', { x0: 3, x1: 35.5, y0: 0, y1: 32.5 }, true],
     ];
     const hits = [];
@@ -748,6 +796,67 @@
     });
     if (seats.some((c) => c.x - c.r < 0 || c.x + c.r > W || c.y - c.r < 0 || c.y + c.r > L)) hits.push('wall (stool)');
     return { T, rect, seats: seats.length, walk: Math.max(0, best.d), a: best.p, b: best.q, hits };
+  }
+  // ---------- Coffee table candidates (all built long along x, centred on C) ----------
+  function coffeeGreyson(g) {
+    const L = 47.5, D = 23.5, H = 16.25, t = 1.2, hx = L / 2, hy = D / 2;
+    lb(g, -hx, hx, -hy, hy, H - t, H, M.acorn);
+    lb(g, -hx + 2.5, hx - 2.5, -hy + 2.5, hy - 2.5, H - t - 2.2, H - t, M.acorn);
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => rod(g, lv(sx * (hx - 3.5), sy * (hy - 3.5), 0), lv(sx * (hx - 2.8), sy * (hy - 2.8), H - t), 0.8, M.acorn));
+    lb(g, -hx + 3.2, hx - 3.2, -hy + 3.2, hy - 3.2, 4.5, 5.4, M.acorn);
+  }
+  function coffeeJuliet(g) {
+    const L = 49.2, D = 23.6, H = 16, t = 1.2, hx = L / 2, hy = D / 2;
+    lb(g, -hx, hx, -hy, hy, H - t, H, M.walnut);
+    [-1, 1].forEach((s) => lb(g, s > 0 ? hx - 3 : -hx + 1.8, s > 0 ? hx - 1.8 : -hx + 3, -hy + 1, hy - 1, 0, H - t, M.walnut));
+    lb(g, -hx + 3, hx - 3, -hy + 1.5, hy - 1.5, 3, 4, M.walnut);
+  }
+  function coffeeAsher(g) {
+    const L = 39, D = 20, H = 18, hx = L / 2, hy = D / 2;
+    lb(g, -hx, hx, -hy, hy, H - 0.4, H, M.glass, false);
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => rod(g, lv(sx * (hx - 1), sy * (hy - 1), 0), lv(sx * (hx - 1), sy * (hy - 1), H - 0.4), 0.45, M.gold));
+    [-1, 1].forEach((sy) => rod(g, lv(-hx + 1, sy * (hy - 1), H - 0.8), lv(hx - 1, sy * (hy - 1), H - 0.8), 0.4, M.gold));
+    [-1, 1].forEach((sx) => rod(g, lv(sx * (hx - 1), -hy + 1, H - 0.8), lv(sx * (hx - 1), hy - 1, H - 0.8), 0.4, M.gold));
+    lb(g, -hx + 2, hx - 2, -hy + 2, hy - 2, 8, 8.9, M.oak);
+  }
+  function coffeeMarble(g) {
+    const L = 42, D = 24, H = 18, hx = L / 2, hy = D / 2;
+    lb(g, -hx, hx, -hy, hy, H - 1, H, M.marble);
+    lb(g, -hx + 1.5, hx - 1.5, -hy + 1.5, hy - 1.5, 5, 5.8, M.marble);
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => rod(g, lv(sx * (hx - 1.5), sy * (hy - 1.5), 0), lv(sx * (hx - 1.5), sy * (hy - 1.5), H - 1), 0.5, M.gold));
+    [H - 1.5, 5].forEach((z) => {
+      [-1, 1].forEach((sy) => rod(g, lv(-hx + 1.5, sy * (hy - 1.5), z), lv(hx - 1.5, sy * (hy - 1.5), z), 0.4, M.gold));
+      [-1, 1].forEach((sx) => rod(g, lv(sx * (hx - 1.5), -hy + 1.5, z), lv(sx * (hx - 1.5), hy - 1.5, z), 0.4, M.gold));
+    });
+  }
+  function coffeeHolmerud(g) {
+    const L = 35.4, D = 21.6, H = 15.75, t = 1.2, hx = L / 2, hy = D / 2;
+    lb(g, -hx, hx, -hy, hy, H - t, H, M.oak);
+    [-1, 1].forEach((s) => lb(g, s > 0 ? hx - t : -hx, s > 0 ? hx : -hx + t, -hy, hy, 0, H - t, M.oak));
+    lb(g, -hx + t, hx - t, -hy, hy, 2.75, 2.75 + t, M.oak);
+    lb(g, -0.6, 0.6, -hy, hy, 2.75 + t, H - t, M.oak);
+  }
+  const COFFEE = {
+    greyson: { short: 'Greyson', name: 'Better Homes & Gardens Greyson', L: 47.5, D: 23.5, H: 16.25, price: '$128 · Walmart', build: coffeeGreyson, note: 'Solid rubberwood in an acorn finish, tapered legs, lower shelf.' },
+    juliet: { short: 'Juliet', name: 'Better Homes & Gardens Juliet', L: 49.2, D: 23.6, H: 16, price: '$116 · Walmart', build: coffeeJuliet, note: 'Walnut-look MDF with rounded edges and a lower shelf. Also comes in light honey.' },
+    asher: { short: 'Asher', name: 'Nathan James Asher', L: 39, D: 20, H: 18, price: '~$142 · Home Depot', build: coffeeAsher, note: 'Glass top on a gold frame with a floating oak shelf. The lightest-looking option, so the room feels bigger.' },
+    marble: { short: 'Marble', name: 'Walker Edison faux-marble rectangle', L: 42, D: 24, H: 18, price: '$90–150 · Amazon', build: coffeeMarble, note: 'White faux-marble top and shelf on a gold frame. Pops against the navy rug.' },
+    holmerud: { short: 'HOLMERUD', name: 'IKEA HOLMERUD', L: 35.4, D: 21.6, H: 15.75, price: '$89.99 · IKEA', build: coffeeHolmerud, note: 'Oak-effect block with open storage. The smallest and cheapest.' },
+  };
+  const coffee = group({ key: 'coffee' });
+  const cstate = { mode: 'ottoman', type: 'greyson', rot: 90, x: 61, y: 68.25 };
+  // Snap back to 16 in off the couch front, centred on the couch (y 92).
+  const centreCoffee = () => { const { ly } = cfp(); cstate.x = 61; cstate.y = 92 - ly / 2; };
+  const cfp = () => { const T = COFFEE[cstate.type]; return cstate.rot ? { lx: T.D, ly: T.L } : { lx: T.L, ly: T.D }; };
+  const coffeeRect = () => { const { lx, ly } = cfp(); return { x0: cstate.x, x1: cstate.x + lx, y0: cstate.y, y1: cstate.y + ly }; };
+  function buildCoffee() {
+    while (coffee.children.length) coffee.remove(coffee.children[0]);
+    const T = COFFEE[cstate.type], { lx, ly } = cfp();
+    const t = new THREE.Group();
+    coffee.add(t);
+    T.build(t);
+    t.position.set(cstate.x + lx / 2 - C.x, 0, cstate.y + ly / 2 - C.y);
+    t.rotation.y = cstate.rot ? Math.PI / 2 : 0;
   }
   const status = (w) => (w >= 30 ? ['ok', 'Clear'] : w >= 24 ? ['warn', 'Tight'] : ['bad', 'Pinched']);
 
@@ -789,6 +898,7 @@
     { text: 'Hallway doorway', pos: v(89, L, 88), obj: hallDoor },
     { text: 'Rug 8×10', pos: v(104, 138, 1), obj: rug },
     { text: 'Ottoman · chaise', pos: v(59, 128, 22), obj: ottoman },
+    { text: 'Coffee table', cls: 'cand', pos: new THREE.Vector3(), obj: coffee, coffeeLabel: true },
     { text: 'Router', pos: v(32, 152, 9), obj: router },
     { text: 'Arc lamp · idea', cls: 'cand', pos: v(15, 136, 87), obj: lamp },
     { text: 'Table · candidate', cls: 'cand', pos: new THREE.Vector3(), obj: tableGroup, dynamic: true },
@@ -894,11 +1004,57 @@
     state.pos = state.x === px && state.y === 0 ? 'wall' : state.x === px && state.y === 24 ? 'pulled' : '';
     refreshTable();
   }));
+  const coffeeDims = new THREE.Group();
+  dims.add(coffeeDims);
+  function refreshCoffee() {
+    ottoman.visible = cstate.mode === 'ottoman';
+    coffee.visible = cstate.mode === 'coffee';
+    setPressed($('frontMode'), cstate.mode);
+    $('coffeeControls').hidden = cstate.mode !== 'coffee';
+    for (let i = dimLabels.length - 1; i >= 0; i--) if (dimLabels[i].parent === coffeeDims) { dimLabels[i].el.remove(); dimLabels.splice(i, 1); }
+    while (coffeeDims.children.length) coffeeDims.remove(coffeeDims.children[0]);
+    if (cstate.mode === 'coffee') {
+      const T = COFFEE[cstate.type], { lx, ly } = cfp();
+      cstate.x = Math.min(Math.max(cstate.x, 0), W - lx);
+      cstate.y = Math.min(Math.max(cstate.y, 0), L - ly);
+      buildCoffee();
+      const r = coffeeRect();
+      setPressed($('coffeeType'), cstate.type);
+      setPressed($('coffeeRot'), cstate.rot);
+      $('coffeeX').max = String(W - lx); $('coffeeY').max = String(L - ly);
+      $('coffeeX').value = String(cstate.x); $('coffeeY').value = String(cstate.y);
+      $('coffeeXOut').textContent = `x ${fmt(r.x0)}–${fmt(r.x1)}`;
+      $('coffeeYOut').textContent = `y ${fmt(r.y0)}–${fmt(r.y1)}`;
+      const toCouch = rectGap(COUCH, r), toStand = rectGap({ x0: 122, x1: W, y0: 55, y1: 125 }, r);
+      const cc = toCouch.d >= 14 && toCouch.d <= 18 ? ['ok', 'Ideal'] : toCouch.d >= 10 && toCouch.d <= 22 ? ['warn', 'OK'] : ['bad', toCouch.d < 10 ? 'Too close' : 'Far'];
+      const [sc, sw] = status(toStand.d);
+      const hits = [['couch', COUCH], ['radiator', { x0: 128, x1: W, y0: 0, y1: 41.5 }], ['TV stand', { x0: 122, x1: W, y0: 55, y1: 125 }]]
+        .filter(([n, o]) => (n !== 'TV stand' || stand.visible) && r.x0 < o.x1 && r.x1 > o.x0 && r.y0 < o.y1 && r.y1 > o.y0).map(([n]) => n);
+      if (toCouch.d > 0.5) makeEl(dimLine(toCouch.p, toCouch.q, 18.5, toCouch.d.toFixed(1), coffeeDims, cc[0]));
+      if (stand.visible && toStand.d > 0.5) makeEl(dimLine(toStand.p, toStand.q, 1.4, toStand.d.toFixed(1) + ' walkway', coffeeDims, sc));
+      const lab = labels.find((l) => l.coffeeLabel);
+      lab.el.textContent = `Coffee table · ${T.short}`;
+      lab.pos.copy(v((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, T.H + 5));
+      $('coffeeStats').innerHTML = [
+        ['Product', `${T.name} · ${T.price}`],
+        ['Size', `${T.L} × ${T.D} × ${T.H} H`],
+        ['Height vs seat (18)', T.H <= 18 ? `${fmt(18 - T.H)} in lower` : `${fmt(T.H - 18)} in higher`],
+        ['Gap to couch front', `${toCouch.d.toFixed(1)} in<span class="pill ${cc[0]}">${cc[1]}</span>`],
+        ['Walkway to TV stand', stand.visible ? `${toStand.d.toFixed(1)} in<span class="pill ${sc}">${sw}</span>` : 'stand hidden'],
+        ['Collides with', hits.length ? `<span class="pill bad">${hits.join(', ')}</span>` : 'nothing'],
+      ].map(([k, val]) => `<dt>${k}</dt><dd>${val}</dd>`).join('');
+    }
+    refreshTable();
+  }
+  $('frontMode').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; cstate.mode = b.dataset.v; refreshCoffee(); });
+  $('coffeeType').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; cstate.type = b.dataset.v; centreCoffee(); refreshCoffee(); });
+  $('coffeeRot').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; cstate.rot = Number(b.dataset.v); centreCoffee(); refreshCoffee(); });
+  $('coffeeX').addEventListener('input', () => { cstate.x = Number($('coffeeX').value); refreshCoffee(); });
+  $('coffeeY').addEventListener('input', () => { cstate.y = Number($('coffeeY').value); refreshCoffee(); });
   if (window.matchMedia('(max-width: 760px)').matches) $('lyr-labels').checked = false;
   const bindLayer = (id, fn) => { const el = $(id); el.addEventListener('change', () => fn(el.checked)); fn(el.checked); };
   bindLayer('lyr-rug', (on) => { rug.visible = on; });
-  bindLayer('lyr-stand', (on) => { stand.visible = on; refreshTable(); });
-  bindLayer('lyr-ottoman', (on) => { ottoman.visible = on; refreshTable(); });
+  bindLayer('lyr-stand', (on) => { stand.visible = on; refreshCoffee(); });
   bindLayer('lyr-lamp', (on) => { lamp.visible = on; });
   bindLayer('lyr-zones', (on) => { zones.visible = on; });
   bindLayer('lyr-dims', (on) => { dims.visible = on; });
@@ -924,6 +1080,10 @@
     'stool-grey': { name: 'Grey stool with back', tag: 'Owned · 2 of these', rows: [['Seat height', '24'], ['Back', 'yes'], ['Seat', '15 × 15 (assumed)']], note: 'Fixed height, right for a 36 in counter table.' },
     'stool-backless': { name: 'Grey backless stool', tag: 'Owned · 1', rows: [['Seat height', '24'], ['Back', 'no'], ['Seat', '15 × 15 (assumed)']], note: 'Matches the grey stools, without the back.' },
   };
+  function coffeeInfo() {
+    const T = COFFEE[cstate.type], r = coffeeRect();
+    return { name: T.name, tag: 'Candidate', cand: true, rows: [['Price', T.price], ['Size', `${T.L} × ${T.D} × ${T.H} H`], ['Position', `x ${fmt(r.x0)}–${fmt(r.x1)}, y ${fmt(r.y0)}–${fmt(r.y1)}`]], note: T.note };
+  }
   function tableInfo() {
     const m = tableMetrics(), T = m.T;
     const [, word] = status(m.walk);
@@ -941,7 +1101,7 @@
     const card = $('info');
     if (!g) { selBox.visible = false; card.innerHTML = '<p class="empty">Click any item in the model to see its size, position and status.</p>'; return; }
     const key = g.userData.info.key;
-    const d = key === 'tableTop' ? tableInfo() : INFO[key === 'wallTop' || key === 'wallBottom' || key === 'wallLeft' || key === 'wallRight' ? 'floor' : key];
+    const d = key === 'tableTop' ? tableInfo() : key === 'coffee' ? coffeeInfo() : INFO[key === 'wallTop' || key === 'wallBottom' || key === 'wallLeft' || key === 'wallRight' ? 'floor' : key];
     if (!d) return;
     if (key.startsWith('wall') || key === 'floor') selBox.visible = false;
     else { selBox.setFromObject(g); selBox.visible = true; }
@@ -1008,7 +1168,7 @@
   }
   new ResizeObserver(resize).observe(vp);
   resize();
-  refreshTable();
+  refreshCoffee();
   goView('overview', true);
 
   const tmp = new THREE.Vector3();
