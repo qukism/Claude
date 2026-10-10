@@ -2,8 +2,14 @@
 
 Everything from planning the living room layout (Sept–Oct 2026).
 
+**Starting a new Claude session?** Open it in this folder and read [HANDOFF.md](HANDOFF.md) first
+(`CLAUDE.md` tells Claude to do that automatically).
+
 | File | What it is |
 |---|---|
+| [HANDOFF.md](HANDOFF.md) | Full context, decisions made, and next steps |
+| [CLAUDE.md](CLAUDE.md) | Instructions Claude reads automatically in this folder |
+| [tools/walkway_calc.py](tools/walkway_calc.py) | Script behind the walkway numbers (`python3 tools/walkway_calc.py`) |
 | [living-room-3d/index.html](living-room-3d/index.html) | Interactive 3D model of the room. Open it in a browser. Also published at https://claude.ai/artifact/T21HUxgBbjmDFC2KvSR73T |
 | [room-notes.md](room-notes.md) | Current state of the room: what's placed, what's decided, corrections to the original spec, walkway numbers |
 | [shopping-lists.md](shopping-lists.md) | Counter-height tables (rectangle and square), coffee tables, Facebook Marketplace searches, with links and prices |
